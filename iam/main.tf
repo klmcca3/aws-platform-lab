@@ -38,7 +38,7 @@ provider "aws" {
 variable "github_owner" {
   description = "Your GitHub username"
   type        = string
-  default     = "YOUR_GITHUB_USERNAME" # change this
+  default     = "klmcca3" 
 }
 
 variable "github_repo" {
@@ -58,7 +58,13 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"] # AWS no longer checks this for GitHub, but older providers require a value
 }
 
+
+# ___Every IAM role has two kinds of policy:
+
+# ___Permissions policy: what the role is allowed to do. For the plan role, that's ReadOnlyAccess, attached further down the file.
+
 # ---------- Plan role: read-only, usable from pull requests ----------
+# It's a Terraform helper that builds the JSON policy for you, so you write readable HCL instead of hand-written JSON.
 data "aws_iam_policy_document" "plan_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -132,3 +138,6 @@ output "github_plan_role_arn" {
 output "github_apply_role_arn" {
   value = aws_iam_role.github_apply.arn
 }
+
+# github_apply_role_arn = "arn:aws:iam::482889161126:role/github-actions-apply"
+#github_plan_role_arn = "arn:aws:iam::482889161126:role/github-actions-plan"

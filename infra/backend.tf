@@ -1,5 +1,4 @@
-# Step 2: tells the main lab project to store its state in the bucket.
-# Run: terraform init
+# Day 2+: the lab infrastructure. This is the folder you destroy nightly.
 
 terraform {
   required_version = ">= 1.10"
@@ -7,9 +6,9 @@ terraform {
   backend "s3" {
     bucket       = "keith-mccarthy-tf-state-lab"
     key          = "lab/terraform.tfstate"
-    region       = "us-east-2"
+    region       = "us-east-2" # where the state bucket lives
     encrypt      = true
-    use_lockfile = true # native S3 state locking, no DynamoDB table needed
+    use_lockfile = true
   }
 
   required_providers {
@@ -20,6 +19,19 @@ terraform {
   }
 }
 
+# Builds everything in the workloads account.
 provider "aws" {
   region = "us-east-2"
+
+  assume_role {
+    role_arn = "arn:aws:iam::482889161126:role/OrganizationAccountAccessRole"
+  }
+
+  default_tags {
+    tags = {
+      Project     = "aws-platform-lab"
+      Owner       = "keith"
+      Environment = "lab"
+    }
+  }
 }
