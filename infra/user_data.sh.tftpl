@@ -1,0 +1,39 @@
+#!/bin/bash
+# Runs once when each app instance boots. Logs: /var/log/cloud-init-output.log
+set -euxo pipefail
+
+# Which availability zone am I in? (IMDSv2: get a token first)
+TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+AZ=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
+
+# pip comes from the Amazon Linux repos, reached through the S3 gateway endpoint
+dnf install -y python3-pip
+
+# Download and unpack the app from the private artifacts bucket
+mkdir -p /opt/app
+aws s3 cp "s3://${bucket}/${key}" /tmp/app.zip --region ${region}
+python3 -m zipfile -e /tmp/app.zip /opt/app
+
+# Install the bundled packages. --no-index: never try to reach PyPI
+pip3 install --no-index --find-links /opt/app/wheels -r /opt/app/requirements.txt
+
+# Run the app as a service so it restarts on failure and on reboot
+useradd --system --no-create-home appuser || true
+cat > /etc/systemd/system/labapp.service << SERVICE
+[Unit]
+Description=Lab Flask app
+After=network.target
+
+[Service]
+User=appuser
+WorkingDirectory=/opt/app
+Environment=AZ=$AZ
+ExecStart=/usr/local/bin/gunicorn --bind 0.0.0.0:${app_port} --workers 2 app:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+systemctl daemon-reload
+systemctl enable --now labapp

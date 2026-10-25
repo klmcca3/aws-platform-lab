@@ -58,3 +58,26 @@ resource "aws_flow_log" "vpc" {
 
   tags = { Name = "lab-vpc-flow-log" }
 }
+
+
+/*
+
+Outputs:
+
+private_subnet_ids = [
+  "subnet-0deacb1d0231fa3cf",
+  "subnet-0a3678cff3b7d4320",
+]
+public_subnet_ids = [
+  "subnet-0c313798f1ebb4f34",
+  "subnet-0b369b5022c4ebb63",
+]
+s3_endpoint_id = "vpce-0196438ef13d4f6a8"
+ssm_endpoint_ids = {
+  "ec2messages" = "vpce-0d62c285265c580a4"
+  "ssm" = "vpce-0e4b9690e5dd6b338"
+  "ssmmessages" = "vpce-051dcc7a4c534a69d"
+}
+vpc_id = "vpc-07f802ec00650e925"
+
+ */
