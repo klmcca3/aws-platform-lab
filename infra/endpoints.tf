@@ -1,7 +1,7 @@
 # VPC endpoints: private paths to AWS services, replacing a NAT Gateway.
 #
 #   S3 (gateway endpoint): free. Adds an S3 route to the private route table.
-#   Systems Manager (3 interface endpoints): billed hourly per endpoint per AZ.
+#   Systems Manager + Secrets Manager (4 interface endpoints): billed hourly per endpoint per AZ.
 #     Needed so private instances with no internet can use Session Manager and Patch Manager.
 
 # ---------- S3 gateway endpoint ----------
@@ -16,7 +16,7 @@ resource "aws_vpc_endpoint" "s3" {
 
 # ---------- Systems Manager interface endpoints ----------
 locals {
-  ssm_services = ["ssm", "ssmmessages", "ec2messages"]
+  ssm_services = ["ssm", "ssmmessages", "ec2messages", "secretsmanager"] # secretsmanager: app reads the DB password
 }
 
 resource "aws_vpc_endpoint" "ssm" {

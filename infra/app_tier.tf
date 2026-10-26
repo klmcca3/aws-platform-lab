@@ -30,6 +30,20 @@ data "aws_iam_policy_document" "app_read_artifacts" {
   }
 }
 
+# Least privilege: read only this database's secret.
+data "aws_iam_policy_document" "app_read_db_secret" {
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_db_instance.app.master_user_secret[0].secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "app_read_db_secret" {
+  name   = "read-db-secret"
+  role   = aws_iam_role.app.id
+  policy = data.aws_iam_policy_document.app_read_db_secret.json
+}
+
 resource "aws_iam_role_policy" "app_read_artifacts" {
   name   = "read-app-artifacts"
   role   = aws_iam_role.app.id
@@ -79,10 +93,14 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
-    bucket   = aws_s3_bucket.artifacts.id
-    key      = aws_s3_object.app.key
-    region   = "us-east-2"
-    app_port = local.app_port
+    bucket        = aws_s3_bucket.artifacts.id
+    key           = aws_s3_object.app.key
+    region        = "us-east-2"
+    app_port      = local.app_port
+    app_version   = local.app_source_hash
+    db_host       = aws_db_instance.app.address
+    db_name       = aws_db_instance.app.db_name
+    db_secret_arn = aws_db_instance.app.master_user_secret[0].secret_arn
   }))
 
   # default_tags don't reach instances launched by Auto Scaling, so set them here.
@@ -99,8 +117,9 @@ resource "aws_launch_template" "app" {
     }
   }
 
-  # A new app.zip changes the template, which triggers an instance refresh below.
-  tags = { AppVersion = aws_s3_object.app.etag }
+  # The app version is written into the user data, so new app code creates a new
+  # template version, which triggers the instance refresh below. (Tags alone don't.)
+  tags = { AppVersion = local.app_source_hash }
 }
 
 # ---------- Application Load Balancer ----------

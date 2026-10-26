@@ -23,12 +23,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
   }
 }
 
-# Uploads app.zip. The etag makes Terraform re-upload whenever the zip changes.
+locals {
+  # Version the app by its SOURCE files, not by the zip's bytes. The zip built on a Mac and
+  # the zip built on GitHub's Linux runners are never byte-identical, but the source in Git is.
+  # Same source anywhere -> same version -> no unnecessary redeploys.
+  app_source_hash = md5(join("", [
+    filemd5("${path.module}/../app/app.py"),
+    filemd5("${path.module}/../app/requirements.txt"),
+    filemd5("${path.module}/../app/build.sh"),
+  ]))
+}
+
+# Uploads app.zip, and re-uploads only when the app's source changes.
 resource "aws_s3_object" "app" {
-  bucket = aws_s3_bucket.artifacts.id
-  key    = "app/app.zip"
-  source = "${path.module}/../app/app.zip"
-  etag   = filemd5("${path.module}/../app/app.zip")
+  bucket      = aws_s3_bucket.artifacts.id
+  key         = "app/app.zip"
+  source      = "${path.module}/../app/app.zip"
+  source_hash = local.app_source_hash
 }
 
 output "artifacts_bucket" {

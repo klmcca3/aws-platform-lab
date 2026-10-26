@@ -19,12 +19,23 @@ terraform {
   }
 }
 
+# On your Mac: you sign in to the management account, so Terraform assumes the admin role
+# in the workloads account. In GitHub Actions: the job is already signed in to the workloads
+# account through OIDC, so the pipeline sets this variable to "" and the block is skipped.
+variable "assume_role_arn" {
+  type    = string
+  default = "arn:aws:iam::482889161126:role/OrganizationAccountAccessRole"
+}
+
 # Builds everything in the workloads account.
 provider "aws" {
   region = "us-east-2"
 
-  assume_role {
-    role_arn = "arn:aws:iam::482889161126:role/OrganizationAccountAccessRole"
+  dynamic "assume_role" {
+    for_each = var.assume_role_arn == "" ? [] : [var.assume_role_arn]
+    content {
+      role_arn = assume_role.value
+    }
   }
 
   default_tags {

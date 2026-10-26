@@ -1,6 +1,7 @@
 #!/bin/bash
 # Runs once when each app instance boots. Logs: /var/log/cloud-init-output.log
 set -euxo pipefail
+# App version: ${app_version} (changes whenever app.py, requirements.txt, or build.sh change)
 
 # Which availability zone am I in? (IMDSv2: get a token first)
 TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
@@ -28,6 +29,10 @@ After=network.target
 User=appuser
 WorkingDirectory=/opt/app
 Environment=AZ=$AZ
+Environment=AWS_DEFAULT_REGION=${region}
+Environment=DB_HOST=${db_host}
+Environment=DB_NAME=${db_name}
+Environment=DB_SECRET_ARN=${db_secret_arn}
 ExecStart=/usr/local/bin/gunicorn --bind 0.0.0.0:${app_port} --workers 2 app:app
 Restart=always
 
