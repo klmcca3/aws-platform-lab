@@ -47,8 +47,23 @@ variable "github_repo" {
   default     = "aws-platform-lab"
 }
 
+# GitHub's OIDC subject includes immutable numeric IDs for the owner and repo, for example
+#   repo:klmcca3@5809911/aws-platform-lab@1430328420:pull_request
+# The IDs never change, so a renamed or re-created repo with the same name can't match.
+variable "github_owner_id" {
+  description = "Numeric ID of the GitHub account"
+  type        = string
+  default     = "5809911"
+}
+
+variable "github_repo_id" {
+  description = "Numeric ID of the repo"
+  type        = string
+  default     = "1430328420"
+}
+
 locals {
-  repo = "${var.github_owner}/${var.github_repo}"
+  repo = "${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}"
 }
 
 # Lets AWS trust short-lived tokens issued by GitHub Actions. No access keys stored in GitHub.
@@ -58,13 +73,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"] # AWS no longer checks this for GitHub, but older providers require a value
 }
 
-
-# ___Every IAM role has two kinds of policy:
-
-# ___Permissions policy: what the role is allowed to do. For the plan role, that's ReadOnlyAccess, attached further down the file.
-
 # ---------- Plan role: read-only, usable from pull requests ----------
-# It's a Terraform helper that builds the JSON policy for you, so you write readable HCL instead of hand-written JSON.
 data "aws_iam_policy_document" "plan_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -138,6 +147,3 @@ output "github_plan_role_arn" {
 output "github_apply_role_arn" {
   value = aws_iam_role.github_apply.arn
 }
-
-# github_apply_role_arn = "arn:aws:iam::482889161126:role/github-actions-apply"
-#github_plan_role_arn = "arn:aws:iam::482889161126:role/github-actions-plan"
