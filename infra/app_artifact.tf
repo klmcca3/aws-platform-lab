@@ -23,12 +23,19 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
   }
 }
 
-# Uploads app.zip. The etag makes Terraform re-upload whenever the zip changes.
+locals {
+  # Fingerprint of the local app.zip, known at plan time.
+  app_zip_hash = filemd5("${path.module}/../app/app.zip")
+}
+
+# Uploads app.zip and re-uploads whenever the zip changes.
+# source_hash (not etag): large files upload in parts, and S3's etag for a multipart
+# upload is not the file's MD5, which would confuse Terraform.
 resource "aws_s3_object" "app" {
-  bucket = aws_s3_bucket.artifacts.id
-  key    = "app/app.zip"
-  source = "${path.module}/../app/app.zip"
-  etag   = filemd5("${path.module}/../app/app.zip")
+  bucket      = aws_s3_bucket.artifacts.id
+  key         = "app/app.zip"
+  source      = "${path.module}/../app/app.zip"
+  source_hash = local.app_zip_hash
 }
 
 output "artifacts_bucket" {

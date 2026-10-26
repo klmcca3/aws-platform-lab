@@ -28,6 +28,10 @@ After=network.target
 User=appuser
 WorkingDirectory=/opt/app
 Environment=AZ=$AZ
+Environment=AWS_DEFAULT_REGION=${region}
+Environment=DB_HOST=${db_host}
+Environment=DB_NAME=${db_name}
+Environment=DB_SECRET_ARN=${db_secret_arn}
 ExecStart=/usr/local/bin/gunicorn --bind 0.0.0.0:${app_port} --workers 2 app:app
 Restart=always
 
