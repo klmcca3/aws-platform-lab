@@ -93,10 +93,11 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
-    bucket        = aws_s3_bucket.artifacts.id
-    key           = aws_s3_object.app.key
-    region        = "us-east-2"
+    bucket   = aws_s3_bucket.artifacts.id
+    key      = aws_s3_object.app.key
+    region   = "us-east-2"
     app_port      = local.app_port
+    app_version   = local.app_source_hash
     db_host       = aws_db_instance.app.address
     db_name       = aws_db_instance.app.db_name
     db_secret_arn = aws_db_instance.app.master_user_secret[0].secret_arn
@@ -116,8 +117,9 @@ resource "aws_launch_template" "app" {
     }
   }
 
-  # A new app.zip changes the template, which triggers an instance refresh below.
-  tags = { AppVersion = local.app_zip_hash }
+  # The app version is written into the user data, so new app code creates a new
+  # template version, which triggers the instance refresh below. (Tags alone don't.)
+  tags = { AppVersion = local.app_source_hash }
 }
 
 # ---------- Application Load Balancer ----------
