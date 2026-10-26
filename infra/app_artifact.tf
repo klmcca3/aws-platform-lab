@@ -32,7 +32,6 @@ locals {
     filemd5("${path.module}/../app/requirements.txt"),
     filemd5("${path.module}/../app/build.sh"),
   ]))
-}/../app/app.zip")
 }
 
 # Uploads app.zip, and re-uploads only when the app's source changes.
