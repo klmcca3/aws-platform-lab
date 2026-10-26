@@ -38,7 +38,7 @@ provider "aws" {
 variable "github_owner" {
   description = "Your GitHub username"
   type        = string
-  default     = "klmcca3" 
+  default     = "klmcca3"
 }
 
 variable "github_repo" {

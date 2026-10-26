@@ -93,10 +93,10 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
-    bucket   = aws_s3_bucket.artifacts.id
-    key      = aws_s3_object.app.key
-    region   = "us-east-2"
-    app_port = local.app_port
+    bucket        = aws_s3_bucket.artifacts.id
+    key           = aws_s3_object.app.key
+    region        = "us-east-2"
+    app_port      = local.app_port
     db_host       = aws_db_instance.app.address
     db_name       = aws_db_instance.app.db_name
     db_secret_arn = aws_db_instance.app.master_user_secret[0].secret_arn
