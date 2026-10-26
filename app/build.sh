@@ -17,7 +17,11 @@ pip3 download \
   --implementation cp
 
 cp app.py requirements.txt build/
-(cd build && zip -qr ../app.zip .)
+
+# Reproducible zip: fixed timestamps and sorted file order, so the same code always
+# produces the same file. Otherwise every build looks "changed" to Terraform.
+find build -exec touch -t 202001010000 {} +
+(cd build && find . -type f | LC_ALL=C sort | zip -qX ../app.zip -@)
 rm -rf build
 
 echo "Built app/app.zip ($(du -h app.zip | cut -f1))"
