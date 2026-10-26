@@ -24,18 +24,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
 }
 
 locals {
-  # Fingerprint of the local app.zip, known at plan time.
-  app_zip_hash = filemd5("${path.module}/../app/app.zip")
+  # Version the app by its SOURCE files, not by the zip's bytes. The zip built on a Mac and
+  # the zip built on GitHub's Linux runners are never byte-identical, but the source in Git is.
+  # Same source anywhere -> same version -> no unnecessary redeploys.
+  app_source_hash = md5(join("", [
+    filemd5("${path.module}/../app/app.py"),
+    filemd5("${path.module}/../app/requirements.txt"),
+    filemd5("${path.module}/../app/build.sh"),
+  ]))
+}/../app/app.zip")
 }
 
-# Uploads app.zip and re-uploads whenever the zip changes.
-# source_hash (not etag): large files upload in parts, and S3's etag for a multipart
-# upload is not the file's MD5, which would confuse Terraform.
+# Uploads app.zip, and re-uploads only when the app's source changes.
 resource "aws_s3_object" "app" {
   bucket      = aws_s3_bucket.artifacts.id
   key         = "app/app.zip"
   source      = "${path.module}/../app/app.zip"
-  source_hash = local.app_zip_hash
+  source_hash = local.app_source_hash
 }
 
 output "artifacts_bucket" {
