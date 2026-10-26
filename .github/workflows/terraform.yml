@@ -1,0 +1,117 @@
+# Infrastructure pipeline for infra/ (which also deploys the app).
+#   Pull request -> build app.zip, terraform plan with the READ-ONLY role, show the plan.
+#   Merge to main -> build app.zip, terraform apply with the APPLY role.
+# No AWS keys are stored in GitHub: each run gets short-lived credentials through OIDC.
+
+name: Terraform
+
+on:
+  pull_request:
+    paths: ["infra/**", "app/**", ".github/workflows/terraform.yml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", "app/**", ".github/workflows/terraform.yml"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write       # request the OIDC token
+  contents: read
+  pull-requests: write  # comment the plan on the pull request
+
+concurrency:
+  group: terraform-infra  # never run two plans/applies against the same state at once
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_assume_role_arn: ""  # already in the workloads account; don't assume another role
+  AWS_REGION: us-east-2
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build app package
+        working-directory: app
+        run: ./build.sh
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Assume read-only plan role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::482889161126:role/github-actions-plan
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: terraform init
+        run: terraform init -input=false
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: terraform plan
+        id: plan
+        run: |
+          terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+          echo '## Terraform plan' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -c 60000 plan.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment plan on the pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/plan.txt', 'utf8');
+            const summary = plan.split('\n').filter(l => l.startsWith('Plan:') || l.startsWith('No changes')).join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Terraform plan\n\`\`\`\n${summary || 'See the job summary for details.'}\n\`\`\`\nFull plan: [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });
+
+  apply:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build app package
+        working-directory: app
+        run: ./build.sh
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Assume apply role (main branch only)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::482889161126:role/github-actions-apply
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform init
+        run: terraform init -input=false
+
+      - name: terraform apply
+        run: terraform apply -input=false -auto-approve
