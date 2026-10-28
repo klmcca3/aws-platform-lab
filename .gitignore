@@ -1,1 +1,14 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+.terraform.tfstate.lock.info
+
+# Build output
+app/app.zip
+app/build/
+
+# Mac
 .DS_Store
