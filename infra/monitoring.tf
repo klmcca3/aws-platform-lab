@@ -6,10 +6,10 @@ data "aws_sns_topic" "alerts" {
 }
 
 locals {
-  alb_dim = aws_lb.app.arn_suffix
-  tg_dim  = aws_lb_target_group.app.arn_suffix
-  asg_dim = aws_autoscaling_group.app.name
-  db_dim  = aws_db_instance.app.identifier
+  alb_dim       = aws_lb.app.arn_suffix
+  tg_dim        = aws_lb_target_group.app.arn_suffix
+  asg_dim       = aws_autoscaling_group.app.name
+  db_dim        = aws_db_instance.app.identifier
   alarm_actions = [data.aws_sns_topic.alerts.arn]
 }
 
